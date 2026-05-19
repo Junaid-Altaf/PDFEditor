@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Flatten PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:680px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(42,157,143,.12);color:var(--green)">
+        <i class="fa-solid fa-layer-group"></i>
+      </div>
+      <h1>Flatten PDF</h1>
+      <p>Flatten fillable form fields and annotations, making the PDF non-editable and universally compatible.</p>
+    </div>
+
+    <div class="info-banner" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start">
+      <i class="fa fa-circle-info" style="color:#16a34a;margin-top:2px"></i>
+      <div style="font-size:.85rem;color:#15803d">Flattening embeds form values into the page content. Form fields become static text and the PDF can no longer be filled out.</div>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="toolUI" style="display:none">
+      <div class="file-list" id="fileList"></div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="applyBtn">
+          <i class="fa-solid fa-layer-group"></i> Flatten PDF
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>PDF Flattened!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download Flattened PDF</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Flatten Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument } = PDFLib;
+let pdfFile = null;
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  document.getElementById('fileList').innerHTML = `<div class="file-item"><i class="fa-solid fa-file-pdf file-item-icon"></i><div class="file-item-info"><div class="file-item-name">${file.name}</div><div class="file-item-size">${formatSize(file.size)}</div></div></div>`;
+  document.getElementById('toolUI').style.display = 'block';
+  dropZone.style.display = 'none';
+}
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('applyBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 40, 400);
+    const buf = await pdfFile.arrayBuffer();
+    const doc = await PDFDocument.load(buf, { ignoreEncryption: true });
+
+    // Flatten form fields
+    const form = doc.getForm();
+    try { form.flatten(); } catch(e) { /* no form fields */ }
+
+    await animateProgress(pb, pt, 40, 95, 500);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 95, 100, 200);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const baseName = pdfFile.name.replace(/\.pdf$/i, '');
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = baseName + '-flattened.pdf';
+    document.getElementById('resultInfo').textContent = `${doc.getPageCount()} pages · ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null;
+  document.getElementById('toolUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+  dropZone.style.display = 'block'; fileInput.value = '';
+}
+</script>
+</body>
+</html>

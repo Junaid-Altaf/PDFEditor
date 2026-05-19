@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDF to Excel — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    #csvPreview { width:100%; max-height:300px; overflow:auto; border:1.5px solid var(--border); border-radius:10px; font-family:monospace; font-size:.82rem; padding:12px; background:#f8fafc; white-space:pre; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:720px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(42,157,143,.12);color:var(--green)">
+        <i class="fa-solid fa-file-csv"></i>
+      </div>
+      <h1>PDF to Excel / CSV</h1>
+      <p>Extract text content from each PDF page and export as a CSV file compatible with Excel.</p>
+    </div>
+
+    <div class="info-banner" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start">
+      <i class="fa fa-circle-info" style="color:#16a34a;margin-top:2px"></i>
+      <div style="font-size:.85rem;color:#15803d">Each page's text is placed in a CSV row. For PDFs with actual table data, the extracted text will be organized by line.</div>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="toolUI" style="display:none">
+      <div class="file-list" id="fileList"></div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="applyBtn">
+          <i class="fa-solid fa-file-csv"></i> Extract to CSV
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>CSV Ready!</h3>
+        <p id="resultInfo"></p>
+        <div id="csvPreview"></div>
+        <br/>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download CSV</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Extract from Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let pdfFile = null;
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  document.getElementById('fileList').innerHTML = `<div class="file-item"><i class="fa-solid fa-file-pdf file-item-icon"></i><div class="file-item-info"><div class="file-item-name">${file.name}</div><div class="file-item-size">${formatSize(file.size)}</div></div></div>`;
+  document.getElementById('toolUI').style.display = 'block';
+  dropZone.style.display = 'none';
+}
+
+function csvEscape(s) { return '"' + s.replace(/"/g, '""') + '"'; }
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('applyBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 15, 200);
+    const buf = await pdfFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    const numPages = pdf.numPages;
+    const rows = [['Page', 'Line', 'Text']];
+
+    for (let i = 1; i <= numPages; i++) {
+      await animateProgress(pb, pt, 15 + ((i-1)/numPages)*75, 15 + (i/numPages)*75, 100);
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      // Group by approximate Y position into lines
+      const lineMap = {};
+      content.items.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        if (!lineMap[y]) lineMap[y] = [];
+        lineMap[y].push(item.str);
+      });
+      const sortedYs = Object.keys(lineMap).map(Number).sort((a,b) => b - a);
+      sortedYs.forEach((y, lineIdx) => {
+        const text = lineMap[y].join(' ').trim();
+        if (text) rows.push([i, lineIdx + 1, text]);
+      });
+    }
+
+    await animateProgress(pb, pt, 90, 100, 200);
+    const csv = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const baseName = pdfFile.name.replace(/\.pdf$/i, '');
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = baseName + '.csv';
+    document.getElementById('csvPreview').textContent = csv.slice(0, 2000) + (csv.length > 2000 ? '\n[Preview truncated]' : '');
+    document.getElementById('resultInfo').textContent = `${rows.length - 1} rows extracted from ${numPages} pages`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null;
+  document.getElementById('toolUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+  dropZone.style.display = 'block'; fileInput.value = '';
+}
+</script>
+</body>
+</html>

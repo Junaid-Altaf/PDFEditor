@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Split PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+
+<section class="tool-page">
+  <div class="container" style="max-width:760px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(244,162,97,.15);color:#d97706">
+        <i class="fa-solid fa-scissors"></i>
+      </div>
+      <h1>Split PDF</h1>
+      <p>Click the pages you want to extract, or choose a page range. Each selected page becomes a separate PDF.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="splitUI" style="display:none">
+      <div class="tool-options">
+        <h3>Split Mode</h3>
+        <div class="option-row">
+          <div>
+            <div class="option-label">Extract by page range</div>
+            <div class="option-desc">e.g. 1-3, 5, 7-9</div>
+          </div>
+          <input type="text" class="tool-input" id="pageRange" placeholder="1-3, 5, 7-9" style="max-width:200px"/>
+        </div>
+        <div class="option-row" style="margin-top:4px">
+          <div class="option-label option-desc">— or click thumbnails below to select individual pages —</div>
+        </div>
+      </div>
+
+      <div class="pages-grid" id="pagesGrid"></div>
+      <p id="selectionInfo" style="text-align:center;color:var(--muted);font-size:.9rem;margin-bottom:12px"></p>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="splitBtn">
+          <i class="fa-solid fa-scissors"></i> Split PDF
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>Split Successfully!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download PDF</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Split Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const { PDFDocument } = PDFLib;
+
+let pdfFile = null, totalPages = 0, selectedPages = new Set();
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+async function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  totalPages = pdf.numPages;
+  selectedPages = new Set();
+  document.getElementById('splitUI').style.display = 'block';
+  dropZone.style.display = 'none';
+  await renderThumbnails(pdf);
+}
+
+async function renderThumbnails(pdf) {
+  const grid = document.getElementById('pagesGrid');
+  grid.innerHTML = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: 0.3 });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    const thumb = document.createElement('div');
+    thumb.className = 'page-thumb';
+    thumb.dataset.page = i;
+    // Build DOM without innerHTML+= (which destroys canvas pixel data)
+    const checkDiv = document.createElement('div');
+    checkDiv.className = 'page-check';
+    checkDiv.innerHTML = '<i class="fa fa-check"></i>';
+    const label = document.createElement('div');
+    label.className = 'page-thumb-label';
+    label.textContent = 'Page ' + i;
+    thumb.appendChild(checkDiv);
+    thumb.appendChild(canvas);
+    thumb.appendChild(label);
+    thumb.addEventListener('click', () => togglePage(i, thumb));
+    grid.appendChild(thumb);
+  }
+  updateSelectionInfo();
+}
+
+function togglePage(n, el) {
+  if (selectedPages.has(n)) { selectedPages.delete(n); el.classList.remove('selected'); }
+  else { selectedPages.add(n); el.classList.add('selected'); }
+  document.getElementById('pageRange').value = '';
+  updateSelectionInfo();
+}
+
+function updateSelectionInfo() {
+  const info = document.getElementById('selectionInfo');
+  info.textContent = selectedPages.size ? `${selectedPages.size} page(s) selected` : 'No pages selected — all pages will be extracted';
+}
+
+document.getElementById('splitBtn').addEventListener('click', async () => {
+  const rangeInput = document.getElementById('pageRange').value.trim();
+  let pages = [];
+
+  if (rangeInput) {
+    // Parse range like "1-3, 5, 7-9"
+    rangeInput.split(',').forEach(part => {
+      part = part.trim();
+      if (part.includes('-')) {
+        const [a, b] = part.split('-').map(Number);
+        for (let i = a; i <= b && i <= totalPages; i++) pages.push(i);
+      } else {
+        const n = parseInt(part);
+        if (n >= 1 && n <= totalPages) pages.push(n);
+      }
+    });
+    pages = [...new Set(pages)].sort((a, b) => a - b);
+  } else if (selectedPages.size) {
+    pages = [...selectedPages].sort((a, b) => a - b);
+  } else {
+    pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  if (!pages.length) { showToast('No valid pages selected', 'error'); return; }
+
+  const btn = document.getElementById('splitBtn');
+  btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 30, 300);
+    const buf = await pdfFile.arrayBuffer();
+    const srcDoc = await PDFDocument.load(buf);
+    const newDoc = await PDFDocument.create();
+    const copied = await newDoc.copyPages(srcDoc, pages.map(p => p - 1));
+    copied.forEach(p => newDoc.addPage(p));
+    await animateProgress(pb, pt, 30, 90, 500);
+    const bytes = await newDoc.save();
+    await animateProgress(pb, pt, 90, 100, 200);
+
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = 'split.pdf';
+    document.getElementById('resultInfo').textContent = `Extracted ${pages.length} page(s) → ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none';
+    btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null; totalPages = 0; selectedPages = new Set();
+  document.getElementById('splitUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('splitBtn').style.display = 'inline-flex';
+  document.getElementById('splitBtn').disabled = false;
+  document.getElementById('pagesGrid').innerHTML = '';
+  dropZone.style.display = 'block';
+  fileInput.value = '';
+}
+</script>
+</body>
+</html>

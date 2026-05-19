@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Compare PDFs — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    @media(max-width:600px) { .compare-grid { grid-template-columns:1fr; } }
+    .diff-area { background:#f8fafc; border:1.5px solid var(--border); border-radius:10px; padding:16px; font-family:monospace; font-size:.8rem; line-height:1.7; max-height:400px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; }
+    .line-add { background:#dcfce7; color:#15803d; display:block; }
+    .line-rem { background:#fee2e2; color:#b91c1c; display:block; text-decoration:line-through; }
+    .line-same { color:var(--muted); display:block; }
+    .diff-stats { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:14px; }
+    .stat-chip { padding:6px 14px; border-radius:20px; font-size:.82rem; font-weight:600; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:960px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(124,58,237,.12);color:var(--purple)">
+        <i class="fa-solid fa-code-compare"></i>
+      </div>
+      <h1>Compare PDFs</h1>
+      <p>Upload two PDF files and see a text-level diff showing what was added, removed, or unchanged.</p>
+    </div>
+
+    <div class="compare-grid">
+      <div>
+        <h3 style="margin-bottom:10px;font-size:1rem"><i class="fa fa-file-pdf" style="color:var(--red)"></i> Original PDF</h3>
+        <div class="drop-zone" id="dropZone1" style="padding:24px 16px;min-height:120px">
+          <input type="file" id="fileInput1" accept=".pdf"/>
+          <div class="drop-zone-icon" style="font-size:1.5rem"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+          <p style="margin:4px 0;font-size:.88rem">Drop PDF 1 or click</p>
+        </div>
+        <div id="fileName1" style="font-size:.82rem;color:var(--muted);margin-top:6px;padding:0 4px"></div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:10px;font-size:1rem"><i class="fa fa-file-pdf" style="color:var(--blue)"></i> Modified PDF</h3>
+        <div class="drop-zone" id="dropZone2" style="padding:24px 16px;min-height:120px">
+          <input type="file" id="fileInput2" accept=".pdf"/>
+          <div class="drop-zone-icon" style="font-size:1.5rem"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+          <p style="margin:4px 0;font-size:.88rem">Drop PDF 2 or click</p>
+        </div>
+        <div id="fileName2" style="font-size:.82rem;color:var(--muted);margin-top:6px;padding:0 4px"></div>
+      </div>
+    </div>
+
+    <div class="action-area" style="margin-top:24px">
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+      <button class="btn-action" id="compareBtn">
+        <i class="fa-solid fa-code-compare"></i> Compare PDFs
+      </button>
+    </div>
+
+    <div id="resultSection" style="display:none">
+      <div class="diff-stats" id="diffStats"></div>
+      <h3 style="margin-bottom:10px;font-size:.95rem">Text Differences</h3>
+      <div class="diff-area" id="diffArea"></div>
+      <br/>
+      <button onclick="resetTool()" class="btn-outline">Compare Other Files</button>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let file1 = null, file2 = null;
+
+function setupDrop(zoneId, inputId, fileNum) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); setFile(e.dataTransfer.files[0], fileNum); });
+  input.addEventListener('change', () => setFile(input.files[0], fileNum));
+}
+
+function setFile(file, num) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  if (num === 1) { file1 = file; document.getElementById('fileName1').textContent = '✓ ' + file.name; document.getElementById('dropZone1').style.borderColor = 'var(--green)'; }
+  else { file2 = file; document.getElementById('fileName2').textContent = '✓ ' + file.name; document.getElementById('dropZone2').style.borderColor = 'var(--blue)'; }
+}
+
+setupDrop('dropZone1', 'fileInput1', 1);
+setupDrop('dropZone2', 'fileInput2', 2);
+
+async function extractText(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  let lines = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // Group into lines by Y position
+    const lineMap = {};
+    content.items.forEach(item => {
+      const y = Math.round(item.transform[5]);
+      if (!lineMap[y]) lineMap[y] = [];
+      lineMap[y].push(item.str);
+    });
+    const ys = Object.keys(lineMap).map(Number).sort((a,b) => b - a);
+    ys.forEach(y => {
+      const text = lineMap[y].join(' ').trim();
+      if (text) lines.push(text);
+    });
+  }
+  return lines;
+}
+
+// Simple LCS-based diff
+function diff(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  const result = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i-1] === b[j-1]) { result.unshift({ type: 'same', text: a[i-1] }); i--; j--; }
+    else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) { result.unshift({ type: 'add', text: b[j-1] }); j--; }
+    else { result.unshift({ type: 'rem', text: a[i-1] }); i--; }
+  }
+  return result;
+}
+
+document.getElementById('compareBtn').addEventListener('click', async () => {
+  if (!file1 || !file2) { showToast('Please select both PDF files', 'error'); return; }
+  const btn = document.getElementById('compareBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 30, 300);
+    const lines1 = await extractText(file1);
+    await animateProgress(pb, pt, 30, 60, 300);
+    const lines2 = await extractText(file2);
+    await animateProgress(pb, pt, 60, 80, 200);
+    // Limit for performance
+    const a = lines1.slice(0, 500), b = lines2.slice(0, 500);
+    const diffs = diff(a, b);
+    await animateProgress(pb, pt, 80, 100, 200);
+
+    let added = 0, removed = 0, same = 0;
+    const diffArea = document.getElementById('diffArea');
+    diffArea.innerHTML = '';
+    diffs.forEach(d => {
+      const span = document.createElement('span');
+      span.className = d.type === 'add' ? 'line-add' : d.type === 'rem' ? 'line-rem' : 'line-same';
+      span.textContent = (d.type === 'add' ? '+ ' : d.type === 'rem' ? '− ' : '  ') + d.text;
+      diffArea.appendChild(span);
+      if (d.type === 'add') added++;
+      else if (d.type === 'rem') removed++;
+      else same++;
+    });
+
+    document.getElementById('diffStats').innerHTML = `
+      <span class="stat-chip" style="background:#dcfce7;color:#15803d"><i class="fa fa-plus"></i> ${added} added</span>
+      <span class="stat-chip" style="background:#fee2e2;color:#b91c1c"><i class="fa fa-minus"></i> ${removed} removed</span>
+      <span class="stat-chip" style="background:#f1f5f9;color:var(--muted)"><i class="fa fa-equals"></i> ${same} unchanged</span>
+    `;
+    pw.style.display = 'none';
+    document.getElementById('resultSection').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  file1 = null; file2 = null;
+  ['dropZone1','dropZone2'].forEach(id => document.getElementById(id).style.borderColor = '');
+  ['fileName1','fileName2'].forEach(id => document.getElementById(id).textContent = '');
+  document.getElementById('resultSection').style.display = 'none';
+  document.getElementById('compareBtn').style.display = 'inline-flex';
+  document.getElementById('compareBtn').disabled = false;
+  document.getElementById('fileInput1').value = '';
+  document.getElementById('fileInput2').value = '';
+}
+</script>
+</body>
+</html>

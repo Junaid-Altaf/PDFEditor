@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HTML to PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    #htmlInput { width:100%; min-height:220px; padding:14px; border:1.5px solid var(--border); border-radius:10px; font-family:monospace; font-size:.85rem; line-height:1.6; resize:vertical; background:#f8fafc; }
+    .template-btns { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+    .tpl-btn { padding:6px 12px; border:1.5px solid var(--border); border-radius:8px; background:var(--card); font-family:var(--font); font-size:.82rem; cursor:pointer; transition:all .2s; }
+    .tpl-btn:hover { border-color:var(--red); color:var(--red); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:760px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(244,162,97,.12);color:var(--orange)">
+        <i class="fa-brands fa-html5"></i>
+      </div>
+      <h1>HTML to PDF</h1>
+      <p>Type or paste HTML markup and convert it into a PDF document instantly.</p>
+    </div>
+
+    <div class="tool-options">
+      <h3>HTML Content</h3>
+      <div class="template-btns">
+        <button class="tpl-btn" onclick="loadTpl('letter')"><i class="fa fa-file-alt"></i> Letter Template</button>
+        <button class="tpl-btn" onclick="loadTpl('invoice')"><i class="fa fa-receipt"></i> Invoice Template</button>
+        <button class="tpl-btn" onclick="loadTpl('table')"><i class="fa fa-table"></i> Table Template</button>
+        <button class="tpl-btn" onclick="document.getElementById('htmlInput').value=''"><i class="fa fa-trash"></i> Clear</button>
+      </div>
+      <textarea id="htmlInput" placeholder="Type or paste your HTML here…"></textarea>
+    </div>
+
+    <div class="tool-options">
+      <div class="option-row">
+        <div><div class="option-label">Page Size</div></div>
+        <select id="pageSize">
+          <option value="A4" selected>A4</option>
+          <option value="Letter">Letter</option>
+        </select>
+      </div>
+      <div class="option-row">
+        <div><div class="option-label">Font Size</div></div>
+        <div class="slider-wrap">
+          <input type="range" id="fontSize" min="8" max="24" value="12" oninput="document.getElementById('fontSizeVal').textContent=this.value+'pt'"/>
+          <span class="slider-val" id="fontSizeVal">12pt</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-area">
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+      <button class="btn-action" id="applyBtn">
+        <i class="fa-brands fa-html5"></i> Convert to PDF
+      </button>
+    </div>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+      <h3>PDF Created!</h3>
+      <p id="resultInfo"></p>
+      <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download PDF</a>
+      <br/><br/>
+      <button onclick="resetTool()" class="btn-outline">Convert Another</button>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+const templates = {
+  letter: `<h1>Company Name</h1>
+<p>Date: January 1, 2025</p>
+<p>Dear Valued Customer,</p>
+<p>We are writing to inform you about our latest updates and offerings. 
+Thank you for your continued support and business.</p>
+<p>Best regards,<br/>The Team</p>`,
+
+  invoice: `<h1>INVOICE #001</h1>
+<p>Date: January 1, 2025 | Due: January 31, 2025</p>
+<hr/>
+<p><strong>Bill To:</strong> Customer Name | customer@email.com</p>
+<hr/>
+<p>Web Development | $1,500.00</p>
+<p>Logo Design | $300.00</p>
+<p>Hosting (1 year) | $120.00</p>
+<hr/>
+<p><strong>Total: $1,920.00</strong></p>
+<p>Payment due within 30 days. Thank you for your business!</p>`,
+
+  table: `<h1>Sales Report Q1 2025</h1>
+<p>Monthly Summary</p>
+<table border="1" style="border-collapse:collapse;width:100%">
+  <tr><th>Month</th><th>Revenue</th><th>Units</th><th>Growth</th></tr>
+  <tr><td>January</td><td>$45,000</td><td>450</td><td>+12%</td></tr>
+  <tr><td>February</td><td>$52,000</td><td>520</td><td>+15%</td></tr>
+  <tr><td>March</td><td>$61,000</td><td>610</td><td>+17%</td></tr>
+</table>
+<p>Total Q1 Revenue: $158,000</p>`
+};
+
+function loadTpl(name) {
+  document.getElementById('htmlInput').value = templates[name] || '';
+}
+
+// Simple HTML-to-text parser that converts HTML to text with basic formatting
+function htmlToLines(html, maxWidth, fontSize) {
+  // Strip tags but preserve structure
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const lines = [];
+
+  function processNode(node, bold, heading, listIndent) {
+    if (node.nodeType === 3) { // text node
+      const text = node.textContent.replace(/\s+/g, ' ').trim();
+      if (text) lines.push({ text, bold, heading, listIndent });
+    } else if (node.nodeType === 1) {
+      const tag = node.tagName.toLowerCase();
+      const isBlock = ['div','p','h1','h2','h3','h4','h5','h6','li','tr','br','hr','table'].includes(tag);
+      if (tag === 'hr') { lines.push({ text: '─'.repeat(60), bold: false, heading: false, listIndent: 0 }); return; }
+      if (tag === 'br') { lines.push({ text: '', bold: false, heading: false, listIndent: 0 }); return; }
+      if (tag === 'th') { node.childNodes.forEach(c => processNode(c, true, false, 0)); lines.push({ text: ' | ', bold: false, heading: false, listIndent: 0, inline: true }); return; }
+      if (tag === 'td') { node.childNodes.forEach(c => processNode(c, false, false, 0)); lines.push({ text: ' | ', bold: false, heading: false, listIndent: 0, inline: true }); return; }
+      const isHeading = /^h[1-6]$/.test(tag);
+      const isBold = bold || ['strong','b'].includes(tag);
+      node.childNodes.forEach(c => processNode(c, isBold, isHeading, listIndent));
+      if (isBlock) lines.push({ text: '', bold: false, heading: false, listIndent: 0 });
+    }
+  }
+
+  processNode(tmp, false, false, 0);
+  return lines;
+}
+
+function wrapText(text, font, size, maxWidth) {
+  const words = text.split(' ');
+  const wrapped = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    const w = font.widthOfTextAtSize(test, size);
+    if (w > maxWidth && line) {
+      wrapped.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) wrapped.push(line);
+  return wrapped.length ? wrapped : [''];
+}
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  const html = document.getElementById('htmlInput').value.trim();
+  if (!html) { showToast('Please enter some HTML content', 'error'); return; }
+  const btn = document.getElementById('applyBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 30, 300);
+    const doc = await PDFDocument.create();
+    const fontNormal = await doc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const pageSizeId = document.getElementById('pageSize').value;
+    const [PW, PH] = pageSizeId === 'A4' ? [595, 842] : [612, 792];
+    const fontSize = parseInt(document.getElementById('fontSize').value);
+    const margin = 50;
+    const lineH = fontSize * 1.6;
+    const maxW = PW - margin * 2;
+
+    const lineNodes = htmlToLines(html, maxW, fontSize);
+    let page = doc.addPage([PW, PH]);
+    let y = PH - margin;
+
+    for (const node of lineNodes) {
+      if (!node.text) { y -= lineH * 0.5; if (y < margin) { page = doc.addPage([PW, PH]); y = PH - margin; } continue; }
+      const font = (node.bold || node.heading) ? fontBold : fontNormal;
+      const size = node.heading ? fontSize * 1.5 : fontSize;
+      const lines = wrapText(node.text, font, size, maxW);
+      for (const l of lines) {
+        if (y < margin + size) { page = doc.addPage([PW, PH]); y = PH - margin; }
+        page.drawText(l, { x: margin, y: y - size, size, font, color: rgb(0,0,0) });
+        y -= size * 1.6;
+      }
+    }
+
+    await animateProgress(pb, pt, 80, 95, 300);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 95, 100, 200);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = 'converted.pdf';
+    document.getElementById('resultInfo').textContent = `${doc.getPageCount()} page(s) · ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Remove Pages — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .page-thumb.marked-remove { border-color: #e63946; background:#fef2f2; }
+    .page-thumb.marked-remove .remove-badge { display:flex; }
+    .remove-badge { position:absolute; top:6px; right:6px; width:20px; height:20px; background:#e63946; color:#fff; border-radius:50%; display:none; align-items:center; justify-content:center; font-size:.6rem; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:820px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(230,57,70,.1);color:var(--red)">
+        <i class="fa-solid fa-trash-can"></i>
+      </div>
+      <h1>Remove Pages</h1>
+      <p>Click pages to mark them for removal, then apply to get a new PDF without those pages.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="toolUI" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+        <p style="color:var(--muted);font-size:.9rem">Click pages to mark for removal (red = will be deleted)</p>
+        <div style="display:flex;gap:8px">
+          <button class="btn-outline" style="padding:8px 16px;font-size:.85rem" onclick="selectAll()">Select All</button>
+          <button class="btn-outline" style="padding:8px 16px;font-size:.85rem" onclick="clearAll()">Clear</button>
+        </div>
+      </div>
+      <div class="pages-grid" id="pagesGrid"></div>
+      <p id="selInfo" style="text-align:center;color:var(--muted);font-size:.85rem;margin:8px 0"></p>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="applyBtn">
+          <i class="fa-solid fa-trash-can"></i> Remove Selected Pages
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>Pages Removed!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download PDF</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Process Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const { PDFDocument } = PDFLib;
+let pdfFile = null, totalPages = 0, markedPages = new Set();
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+async function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  totalPages = pdf.numPages;
+  markedPages = new Set();
+  document.getElementById('toolUI').style.display = 'block';
+  dropZone.style.display = 'none';
+  await renderThumbs(pdf);
+}
+
+async function renderThumbs(pdf) {
+  const grid = document.getElementById('pagesGrid');
+  grid.innerHTML = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: 0.28 });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    const thumb = document.createElement('div');
+    thumb.className = 'page-thumb'; thumb.id = 'pt-' + i;
+    const badge = document.createElement('div');
+    badge.className = 'remove-badge';
+    badge.innerHTML = '<i class="fa fa-times"></i>';
+    const label = document.createElement('div');
+    label.className = 'page-thumb-label';
+    label.textContent = 'Page ' + i;
+    thumb.appendChild(badge); thumb.appendChild(canvas); thumb.appendChild(label);
+    thumb.addEventListener('click', () => toggleMark(i, thumb));
+    grid.appendChild(thumb);
+  }
+  updateInfo();
+}
+
+function toggleMark(n, el) {
+  if (markedPages.has(n)) { markedPages.delete(n); el.classList.remove('marked-remove'); }
+  else { markedPages.add(n); el.classList.add('marked-remove'); }
+  updateInfo();
+}
+
+function selectAll() {
+  for (let i = 1; i <= totalPages; i++) {
+    markedPages.add(i);
+    const el = document.getElementById('pt-' + i);
+    if (el) el.classList.add('marked-remove');
+  }
+  updateInfo();
+}
+
+function clearAll() {
+  markedPages.clear();
+  document.querySelectorAll('.page-thumb').forEach(el => el.classList.remove('marked-remove'));
+  updateInfo();
+}
+
+function updateInfo() {
+  document.getElementById('selInfo').textContent = markedPages.size ? `${markedPages.size} page(s) marked for removal` : 'No pages selected';
+}
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  if (!markedPages.size) { showToast('Select at least one page to remove', 'error'); return; }
+  if (markedPages.size >= totalPages) { showToast('Cannot remove all pages', 'error'); return; }
+  const btn = document.getElementById('applyBtn');
+  btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 40, 400);
+    const buf = await pdfFile.arrayBuffer();
+    const doc = await PDFDocument.load(buf);
+    // Remove pages in reverse order to maintain correct indices
+    const toRemove = [...markedPages].map(n => n - 1).sort((a, b) => b - a);
+    toRemove.forEach(idx => doc.removePage(idx));
+    await animateProgress(pb, pt, 40, 90, 500);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 90, 100, 200);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = 'removed-pages.pdf';
+    document.getElementById('resultInfo').textContent = `Removed ${markedPages.size} page(s). New PDF: ${totalPages - markedPages.size} pages, ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null; markedPages = new Set();
+  document.getElementById('toolUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+  dropZone.style.display = 'block'; fileInput.value = '';
+}
+</script>
+</body>
+</html>

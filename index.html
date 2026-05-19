@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDFPro — Free Online PDF Editor</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo">
+      <i class="fa-solid fa-file-pdf"></i>
+      <span>PDF<strong>Pro</strong></span>
+    </a>
+    <ul class="nav-links">
+      <li class="dropdown">
+        <a href="#">Tools <i class="fa fa-chevron-down"></i></a>
+        <div class="dropdown-menu">
+          <a href="merge.html"><i class="fa-solid fa-object-group"></i> Merge PDF</a>
+          <a href="split.html"><i class="fa-solid fa-scissors"></i> Split PDF</a>
+          <a href="compress.html"><i class="fa-solid fa-compress"></i> Compress PDF</a>
+          <a href="rotate.html"><i class="fa-solid fa-rotate"></i> Rotate PDF</a>
+          <a href="watermark.html"><i class="fa-solid fa-stamp"></i> Watermark PDF</a>
+          <a href="protect.html"><i class="fa-solid fa-lock"></i> Protect PDF</a>
+          <a href="sign.html"><i class="fa-solid fa-signature"></i> Sign PDF</a>
+          <a href="edit-pdf.html"><i class="fa-solid fa-pen-to-square"></i> Edit PDF</a>
+          <a href="redact.html"><i class="fa-solid fa-eye-slash"></i> Redact PDF</a>
+          <a href="page-numbers.html"><i class="fa-solid fa-list-ol"></i> Page Numbers</a>
+          <a href="remove-pages.html"><i class="fa-solid fa-trash-can"></i> Remove Pages</a>
+          <a href="organize.html"><i class="fa-solid fa-grip"></i> Organize PDF</a>
+          <a href="add-blank-pages.html"><i class="fa-solid fa-file-circle-plus"></i> Add Blank Pages</a>
+          <a href="crop-pdf.html"><i class="fa-solid fa-crop"></i> Crop PDF</a>
+          <a href="pdf-to-word.html"><i class="fa-solid fa-file-word"></i> PDF to Word</a>
+          <a href="word-to-pdf.html"><i class="fa-solid fa-file-pdf"></i> Word to PDF</a>
+          <a href="pdf-to-jpg.html"><i class="fa-solid fa-image"></i> PDF to JPG</a>
+          <a href="pdf-to-png.html"><i class="fa-solid fa-image"></i> PDF to PNG</a>
+          <a href="jpg-to-pdf.html"><i class="fa-solid fa-file-image"></i> JPG to PDF</a>
+          <a href="pdf-to-text.html"><i class="fa-solid fa-file-lines"></i> PDF to Text</a>
+          <a href="pdf-to-excel.html"><i class="fa-solid fa-file-csv"></i> PDF to Excel</a>
+          <a href="html-to-pdf.html"><i class="fa-brands fa-html5"></i> HTML to PDF</a>
+          <a href="excel-to-pdf.html"><i class="fa-solid fa-table"></i> Excel to PDF</a>
+          <a href="pdf-to-pptx.html"><i class="fa-solid fa-file-powerpoint"></i> PDF to Slides</a>
+          <a href="unlock.html"><i class="fa-solid fa-lock-open"></i> Unlock PDF</a>
+          <a href="flatten.html"><i class="fa-solid fa-layer-group"></i> Flatten PDF</a>
+          <a href="repair.html"><i class="fa-solid fa-wrench"></i> Repair PDF</a>
+          <a href="pdf-viewer.html"><i class="fa-solid fa-eye"></i> PDF Viewer</a>
+          <a href="compare.html"><i class="fa-solid fa-code-compare"></i> Compare PDFs</a>
+          <a href="pdf-metadata.html"><i class="fa-solid fa-circle-info"></i> PDF Metadata</a>
+        </div>
+      </li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="merge.html" class="btn-primary">Get Started Free</a>
+    </div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="container hero-content">
+    <div class="hero-badge"><i class="fa-solid fa-bolt"></i> 100% Free · No Install · No Sign-up</div>
+    <h1>Every PDF Tool<br/>You'll Ever Need</h1>
+    <p>Merge, split, compress, convert, rotate, watermark and protect PDF files — all in your browser. Fast, secure, and completely free.</p>
+    <div class="hero-btns">
+      <a href="merge.html" class="btn-primary btn-lg">Start With Merge PDF</a>
+      <a href="#tools" class="btn-outline btn-lg">Browse All Tools</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><strong>50M+</strong><span>Files Processed</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><strong>180+</strong><span>Countries</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><strong>4.9★</strong><span>User Rating</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- TOOLS GRID -->
+<section class="tools-section" id="tools">
+  <div class="container">
+    <div class="section-header">
+      <h2>All PDF Tools</h2>
+      <p>Everything you need to work with PDF files, all in one place.</p>
+    </div>
+    <div class="tools-grid">
+      <!-- Organize & Edit -->
+      <a href="merge.html" class="tool-card tool-red">
+        <div class="tool-icon"><i class="fa-solid fa-object-group"></i></div>
+        <h3>Merge PDF</h3>
+        <p>Combine multiple PDF files into one. Drag, drop and reorder.</p>
+        <span class="tool-badge">Most Popular</span>
+      </a>
+      <a href="split.html" class="tool-card tool-orange">
+        <div class="tool-icon"><i class="fa-solid fa-scissors"></i></div>
+        <h3>Split PDF</h3>
+        <p>Separate pages or extract a range from your PDF.</p>
+      </a>
+      <a href="compress.html" class="tool-card tool-green">
+        <div class="tool-icon"><i class="fa-solid fa-compress"></i></div>
+        <h3>Compress PDF</h3>
+        <p>Reduce PDF file size while maintaining quality.</p>
+        <span class="tool-badge tool-badge-green">Free</span>
+      </a>
+      <a href="rotate.html" class="tool-card tool-teal">
+        <div class="tool-icon"><i class="fa-solid fa-rotate"></i></div>
+        <h3>Rotate PDF</h3>
+        <p>Rotate one or all pages to fix orientation issues.</p>
+      </a>
+      <a href="organize.html" class="tool-card tool-green">
+        <div class="tool-icon"><i class="fa-solid fa-grip"></i></div>
+        <h3>Organize PDF</h3>
+        <p>Drag pages to reorder or delete individual pages.</p>
+      </a>
+      <a href="remove-pages.html" class="tool-card tool-red">
+        <div class="tool-icon"><i class="fa-solid fa-trash-can"></i></div>
+        <h3>Remove Pages</h3>
+        <p>Click to select and delete pages from your PDF.</p>
+      </a>
+      <a href="add-blank-pages.html" class="tool-card tool-green">
+        <div class="tool-icon"><i class="fa-solid fa-file-circle-plus"></i></div>
+        <h3>Add Blank Pages</h3>
+        <p>Insert blank pages at the beginning, end, or after a page.</p>
+      </a>
+      <a href="crop-pdf.html" class="tool-card tool-blue">
+        <div class="tool-icon"><i class="fa-solid fa-crop"></i></div>
+        <h3>Crop PDF</h3>
+        <p>Trim page margins by adjusting the crop box.</p>
+      </a>
+      <a href="page-numbers.html" class="tool-card tool-blue">
+        <div class="tool-icon"><i class="fa-solid fa-list-ol"></i></div>
+        <h3>Page Numbers</h3>
+        <p>Add page numbers with custom position and format.</p>
+      </a>
+      <a href="watermark.html" class="tool-card tool-pink">
+        <div class="tool-icon"><i class="fa-solid fa-stamp"></i></div>
+        <h3>Watermark PDF</h3>
+        <p>Add a custom text watermark to your PDF pages.</p>
+      </a>
+      <!-- Annotate & Sign -->
+      <a href="sign.html" class="tool-card tool-dark">
+        <div class="tool-icon"><i class="fa-solid fa-signature"></i></div>
+        <h3>Sign PDF</h3>
+        <p>Draw or type your signature and embed it into your PDF.</p>
+      </a>
+      <a href="edit-pdf.html" class="tool-card tool-blue">
+        <div class="tool-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+        <h3>Edit PDF</h3>
+        <p>Add custom text annotations to any page at any position.</p>
+      </a>
+      <a href="redact.html" class="tool-card tool-dark">
+        <div class="tool-icon"><i class="fa-solid fa-eye-slash"></i></div>
+        <h3>Redact PDF</h3>
+        <p>Cover sensitive information with black boxes permanently.</p>
+      </a>
+      <a href="protect.html" class="tool-card tool-dark">
+        <div class="tool-icon"><i class="fa-solid fa-lock"></i></div>
+        <h3>Protect PDF</h3>
+        <p>Password-protect your PDF to keep its contents secure.</p>
+      </a>
+      <a href="unlock.html" class="tool-card tool-orange">
+        <div class="tool-icon"><i class="fa-solid fa-lock-open"></i></div>
+        <h3>Unlock PDF</h3>
+        <p>Remove the password from a PDF you own.</p>
+      </a>
+      <!-- Convert FROM PDF -->
+      <a href="pdf-to-word.html" class="tool-card tool-blue">
+        <div class="tool-icon"><i class="fa-solid fa-file-word"></i></div>
+        <h3>PDF to Word</h3>
+        <p>Extract text from PDF and save as an editable RTF file.</p>
+      </a>
+      <a href="pdf-to-jpg.html" class="tool-card tool-purple">
+        <div class="tool-icon"><i class="fa-solid fa-image"></i></div>
+        <h3>PDF to JPG</h3>
+        <p>Convert each PDF page to a JPG image. Download as ZIP.</p>
+      </a>
+      <a href="pdf-to-png.html" class="tool-card tool-purple">
+        <div class="tool-icon"><i class="fa-solid fa-image"></i></div>
+        <h3>PDF to PNG</h3>
+        <p>Convert PDF pages to high-quality PNG images.</p>
+      </a>
+      <a href="pdf-to-text.html" class="tool-card tool-blue">
+        <div class="tool-icon"><i class="fa-solid fa-file-lines"></i></div>
+        <h3>PDF to Text</h3>
+        <p>Extract all text from your PDF and download as .txt.</p>
+      </a>
+      <a href="pdf-to-excel.html" class="tool-card tool-green">
+        <div class="tool-icon"><i class="fa-solid fa-file-csv"></i></div>
+        <h3>PDF to Excel</h3>
+        <p>Extract PDF content and export as a CSV spreadsheet.</p>
+      </a>
+      <a href="pdf-to-pptx.html" class="tool-card tool-pink">
+        <div class="tool-icon"><i class="fa-solid fa-file-powerpoint"></i></div>
+        <h3>PDF to Slides</h3>
+        <p>Convert PDF pages to presentation-ready slide images.</p>
+      </a>
+      <!-- Convert TO PDF -->
+      <a href="word-to-pdf.html" class="tool-card tool-blue">
+        <div class="tool-icon"><i class="fa-solid fa-file-pdf"></i></div>
+        <h3>Word to PDF</h3>
+        <p>Convert text or .txt files to a formatted PDF document.</p>
+      </a>
+      <a href="jpg-to-pdf.html" class="tool-card tool-purple">
+        <div class="tool-icon"><i class="fa-solid fa-file-image"></i></div>
+        <h3>JPG to PDF</h3>
+        <p>Convert images (JPG, PNG, WebP) to a single PDF file.</p>
+      </a>
+      <a href="html-to-pdf.html" class="tool-card tool-orange">
+        <div class="tool-icon"><i class="fa-brands fa-html5"></i></div>
+        <h3>HTML to PDF</h3>
+        <p>Paste HTML markup and convert it to a PDF document.</p>
+      </a>
+      <a href="excel-to-pdf.html" class="tool-card tool-green">
+        <div class="tool-icon"><i class="fa-solid fa-table"></i></div>
+        <h3>Excel / CSV to PDF</h3>
+        <p>Convert CSV data to a formatted PDF table.</p>
+      </a>
+      <!-- Utilities -->
+      <a href="flatten.html" class="tool-card tool-green">
+        <div class="tool-icon"><i class="fa-solid fa-layer-group"></i></div>
+        <h3>Flatten PDF</h3>
+        <p>Flatten fillable form fields to make the PDF non-editable.</p>
+      </a>
+      <a href="repair.html" class="tool-card tool-orange">
+        <div class="tool-icon"><i class="fa-solid fa-wrench"></i></div>
+        <h3>Repair PDF</h3>
+        <p>Fix corrupted or damaged PDFs by re-saving their structure.</p>
+      </a>
+      <a href="pdf-viewer.html" class="tool-card tool-teal">
+        <div class="tool-icon"><i class="fa-solid fa-eye"></i></div>
+        <h3>PDF Viewer</h3>
+        <p>View any PDF in your browser with zoom and navigation.</p>
+      </a>
+      <a href="compare.html" class="tool-card tool-purple">
+        <div class="tool-icon"><i class="fa-solid fa-code-compare"></i></div>
+        <h3>Compare PDFs</h3>
+        <p>Compare two PDFs and see what text was added or removed.</p>
+      </a>
+      <a href="pdf-metadata.html" class="tool-card tool-teal">
+        <div class="tool-icon"><i class="fa-solid fa-circle-info"></i></div>
+        <h3>PDF Metadata</h3>
+        <p>View and edit title, author, keywords and other metadata.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section" id="features">
+  <div class="container">
+    <div class="section-header">
+      <h2>Why Choose PDFPro?</h2>
+      <p>Built for speed, privacy, and ease of use.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-item">
+        <div class="feature-icon purple"><i class="fa-solid fa-shield-halved"></i></div>
+        <h3>Privacy First</h3>
+        <p>All processing happens in your browser. Your files never leave your device.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon green"><i class="fa-solid fa-bolt"></i></div>
+        <h3>Lightning Fast</h3>
+        <p>Client-side processing means no upload wait times. Instant results.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon blue"><i class="fa-solid fa-dollar-sign"></i></div>
+        <h3>100% Free</h3>
+        <p>No hidden fees, no subscriptions. All core tools are completely free.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon orange"><i class="fa-solid fa-mobile-screen"></i></div>
+        <h3>Works Everywhere</h3>
+        <p>Works on desktop, tablet and mobile. No app download required.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon red"><i class="fa-solid fa-infinity"></i></div>
+        <h3>No Limits</h3>
+        <p>Process as many files as you need. No daily limits or file caps.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon teal"><i class="fa-solid fa-code"></i></div>
+        <h3>No Install</h3>
+        <p>Open your browser and you're ready. Zero software installation needed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="how-it-works">
+  <div class="container">
+    <div class="section-header">
+      <h2>How It Works</h2>
+      <p>Three simple steps to transform your PDF files.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-icon"><i class="fa-solid fa-upload"></i></div>
+        <h3>Upload</h3>
+        <p>Select your PDF file from your device or drag and drop it onto the tool.</p>
+      </div>
+      <div class="step-arrow"><i class="fa fa-arrow-right"></i></div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-icon"><i class="fa-solid fa-sliders"></i></div>
+        <h3>Configure</h3>
+        <p>Choose your settings — pages to split, compression level, watermark text, etc.</p>
+      </div>
+      <div class="step-arrow"><i class="fa fa-arrow-right"></i></div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-icon"><i class="fa-solid fa-download"></i></div>
+        <h3>Download</h3>
+        <p>Click the action button and download your processed file instantly.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BANNER -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-inner">
+      <h2>Ready to Work Smarter with PDFs?</h2>
+      <p>Join millions of users who trust PDFPro for their daily PDF tasks.</p>
+      <a href="merge.html" class="btn-primary btn-lg">Try It Free — No Sign-up</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <a href="index.html" class="logo">
+        <i class="fa-solid fa-file-pdf"></i>
+        <span>PDF<strong>Pro</strong></span>
+      </a>
+      <p>Free online PDF tools for everyone. Fast, secure, and no installation required.</p>
+    </div>
+    <div class="footer-links">
+      <h4>PDF Tools</h4>
+      <ul>
+        <li><a href="merge.html">Merge PDF</a></li>
+        <li><a href="split.html">Split PDF</a></li>
+        <li><a href="compress.html">Compress PDF</a></li>
+        <li><a href="pdf-to-word.html">PDF to Word</a></li>
+        <li><a href="pdf-to-jpg.html">PDF to JPG</a></li>
+      </ul>
+    </div>
+    <div class="footer-links">
+      <h4>Convert to PDF</h4>
+      <ul>
+        <li><a href="word-to-pdf.html">Word to PDF</a></li>
+        <li><a href="jpg-to-pdf.html">JPG to PDF</a></li>
+        <li><a href="watermark.html">Watermark PDF</a></li>
+        <li><a href="rotate.html">Rotate PDF</a></li>
+        <li><a href="protect.html">Protect PDF</a></li>
+      </ul>
+    </div>
+      <div class="footer-links">
+        <h4>Edit & Organize</h4>
+        <ul>
+          <li><a href="merge.html">Merge PDF</a></li>
+          <li><a href="split.html">Split PDF</a></li>
+          <li><a href="compress.html">Compress PDF</a></li>
+          <li><a href="organize.html">Organize PDF</a></li>
+          <li><a href="sign.html">Sign PDF</a></li>
+          <li><a href="watermark.html">Watermark PDF</a></li>
+          <li><a href="protect.html">Protect PDF</a></li>
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Convert PDF</h4>
+        <ul>
+          <li><a href="pdf-to-word.html">PDF to Word</a></li>
+          <li><a href="pdf-to-jpg.html">PDF to JPG</a></li>
+          <li><a href="pdf-to-png.html">PDF to PNG</a></li>
+          <li><a href="pdf-to-text.html">PDF to Text</a></li>
+          <li><a href="word-to-pdf.html">Word to PDF</a></li>
+          <li><a href="jpg-to-pdf.html">JPG to PDF</a></li>
+          <li><a href="html-to-pdf.html">HTML to PDF</a></li>
+          <li><a href="excel-to-pdf.html">Excel to PDF</a></li>
+        </ul>
+      </div>
+    <div class="footer-links">
+      <h4>Company</h4>
+      <ul>
+        <li><a href="#">About Us</a></li>
+        <li><a href="#">Privacy Policy</a></li>
+        <li><a href="#">Terms of Service</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2026 PDFPro. All rights reserved. Made with <i class="fa fa-heart" style="color:#e74c3c"></i> for PDF lovers.</p>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>

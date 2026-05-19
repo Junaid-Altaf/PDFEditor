@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDF to Presentation — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .slide-preview { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin:16px 0; }
+    .slide-card { border:1.5px solid var(--border); border-radius:12px; overflow:hidden; background:var(--card); }
+    .slide-card img { width:100%; display:block; }
+    .slide-card-foot { padding:8px 12px; display:flex; align-items:center; justify-content:space-between; }
+    .slide-num { font-size:.78rem; font-weight:700; color:var(--muted); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:900px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(219,39,119,.12);color:var(--pink)">
+        <i class="fa-solid fa-file-powerpoint"></i>
+      </div>
+      <h1>PDF to Presentation</h1>
+      <p>Convert each PDF page into a slide-style image. Download all slides as a ZIP for presentations.</p>
+    </div>
+
+    <div class="info-banner" style="background:#fdf4ff;border:1.5px solid #d8b4fe;border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start">
+      <i class="fa fa-circle-info" style="color:#7c3aed;margin-top:2px"></i>
+      <div style="font-size:.85rem;color:#6b21a8">Each PDF page is rendered as a high-quality PNG image formatted as a presentation slide. Download the ZIP and import images into PowerPoint or Google Slides.</div>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="toolUI" style="display:none">
+      <div class="file-list" id="fileList"></div>
+
+      <div class="tool-options">
+        <div class="option-row">
+          <div><div class="option-label">Slide Resolution</div></div>
+          <select id="scale">
+            <option value="1">Standard (1×)</option>
+            <option value="1.5" selected>High (1.5×)</option>
+            <option value="2">Ultra (2×)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="applyBtn">
+          <i class="fa-solid fa-file-powerpoint"></i> Convert to Slides
+        </button>
+      </div>
+
+      <div id="resultSection" style="display:none">
+        <div class="result-box" id="resultBox">
+          <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+          <h3>Slides Ready!</h3>
+          <p id="resultInfo"></p>
+          <a id="downloadZip" class="btn-download"><i class="fa-solid fa-file-zipper"></i> Download All Slides (ZIP)</a>
+          <br/><br/>
+          <button onclick="resetTool()" class="btn-outline">Convert Another File</button>
+        </div>
+        <div class="slide-preview" id="slidePreview"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let pdfFile = null;
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  document.getElementById('fileList').innerHTML = `<div class="file-item"><i class="fa-solid fa-file-pdf file-item-icon"></i><div class="file-item-info"><div class="file-item-name">${file.name}</div><div class="file-item-size">${formatSize(file.size)}</div></div></div>`;
+  document.getElementById('toolUI').style.display = 'block';
+  dropZone.style.display = 'none';
+}
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('applyBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 10, 200);
+    const buf = await pdfFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    const numPages = pdf.numPages;
+    const scale = parseFloat(document.getElementById('scale').value);
+    const zip = new JSZip();
+    const baseName = pdfFile.name.replace(/\.pdf$/i, '');
+    const slidePreview = document.getElementById('slidePreview');
+    slidePreview.innerHTML = '';
+
+    for (let i = 1; i <= numPages; i++) {
+      await animateProgress(pb, pt, 10 + ((i-1)/numPages)*80, 10 + (i/numPages)*80, 150);
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      const ctx = canvas.getContext('2d');
+      // White background for slides
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      const dataUrl = canvas.toDataURL('image/png');
+      const b64 = dataUrl.split(',')[1];
+      zip.file(`${baseName}-slide-${String(i).padStart(2,'0')}.png`, b64, { base64: true });
+
+      const card = document.createElement('div');
+      card.className = 'slide-card';
+      const img = document.createElement('img');
+      img.src = dataUrl; img.alt = `Slide ${i}`;
+      const foot = document.createElement('div');
+      foot.className = 'slide-card-foot';
+      const num = document.createElement('span');
+      num.className = 'slide-num'; num.textContent = `Slide ${i}`;
+      const dl = document.createElement('a');
+      dl.href = dataUrl; dl.download = `${baseName}-slide-${i}.png`;
+      dl.className = 'btn-outline'; dl.style.cssText = 'font-size:.75rem;padding:4px 10px';
+      dl.innerHTML = '<i class="fa fa-download"></i>';
+      foot.appendChild(num); foot.appendChild(dl);
+      card.appendChild(img); card.appendChild(foot);
+      slidePreview.appendChild(card);
+    }
+
+    await animateProgress(pb, pt, 90, 95, 200);
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    await animateProgress(pb, pt, 95, 100, 200);
+    document.getElementById('downloadZip').href = URL.createObjectURL(zipBlob);
+    document.getElementById('downloadZip').download = baseName + '-slides.zip';
+    document.getElementById('resultInfo').textContent = `${numPages} slide(s) created`;
+    pw.style.display = 'none';
+    document.getElementById('resultSection').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null;
+  document.getElementById('toolUI').style.display = 'none';
+  document.getElementById('resultSection').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+  dropZone.style.display = 'block'; fileInput.value = '';
+}
+</script>
+</body>
+</html>

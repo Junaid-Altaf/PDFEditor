@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Crop PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:680px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(69,123,157,.12);color:var(--blue)">
+        <i class="fa-solid fa-crop"></i>
+      </div>
+      <h1>Crop PDF</h1>
+      <p>Adjust page margins by setting how much to trim from each side of every page (in points, 72pt = 1 inch).</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="toolUI" style="display:none">
+      <div class="file-list" id="fileList"></div>
+
+      <div class="tool-options">
+        <h3>Crop Margins (points)</h3>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Enter how many points to remove from each side. 72 points = 1 inch.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:6px">Top</label>
+            <input type="number" class="tool-input" id="cropTop" value="0" min="0" style="width:100%"/>
+          </div>
+          <div>
+            <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:6px">Bottom</label>
+            <input type="number" class="tool-input" id="cropBottom" value="0" min="0" style="width:100%"/>
+          </div>
+          <div>
+            <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:6px">Left</label>
+            <input type="number" class="tool-input" id="cropLeft" value="0" min="0" style="width:100%"/>
+          </div>
+          <div>
+            <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:6px">Right</label>
+            <input type="number" class="tool-input" id="cropRight" value="0" min="0" style="width:100%"/>
+          </div>
+        </div>
+        <p style="font-size:.78rem;color:var(--muted);margin-top:10px">Example: Enter 36 to remove ~0.5 inch from a side.</p>
+      </div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="applyBtn">
+          <i class="fa-solid fa-crop"></i> Crop PDF
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>PDF Cropped!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download Cropped PDF</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Crop Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument } = PDFLib;
+let pdfFile = null;
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  document.getElementById('fileList').innerHTML = `<div class="file-item"><i class="fa-solid fa-file-pdf file-item-icon"></i><div class="file-item-info"><div class="file-item-name">${file.name}</div><div class="file-item-size">${formatSize(file.size)}</div></div></div>`;
+  document.getElementById('toolUI').style.display = 'block';
+  dropZone.style.display = 'none';
+}
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  const top = parseFloat(document.getElementById('cropTop').value) || 0;
+  const bottom = parseFloat(document.getElementById('cropBottom').value) || 0;
+  const left = parseFloat(document.getElementById('cropLeft').value) || 0;
+  const right = parseFloat(document.getElementById('cropRight').value) || 0;
+
+  if (top === 0 && bottom === 0 && left === 0 && right === 0) {
+    showToast('Enter at least one crop value', 'error'); return;
+  }
+
+  const btn = document.getElementById('applyBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 40, 400);
+    const buf = await pdfFile.arrayBuffer();
+    const doc = await PDFDocument.load(buf);
+    const pages = doc.getPages();
+
+    pages.forEach(page => {
+      const { width, height } = page.getSize();
+      // setCropBox adjusts the visible area
+      page.setCropBox(left, bottom, width - left - right, height - top - bottom);
+      // Also set mediabox to match for compatibility
+      page.setMediaBox(left, bottom, width - left - right, height - top - bottom);
+    });
+
+    await animateProgress(pb, pt, 40, 95, 500);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 95, 100, 200);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const baseName = pdfFile.name.replace(/\.pdf$/i, '');
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = baseName + '-cropped.pdf';
+    document.getElementById('resultInfo').textContent = `${pages.length} pages cropped → ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null;
+  document.getElementById('toolUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+  dropZone.style.display = 'block'; fileInput.value = '';
+}
+</script>
+</body>
+</html>

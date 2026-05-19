@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rotate PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .rotate-controls {
+      display:flex; gap:10px; justify-content:center; margin:16px 0 8px; flex-wrap:wrap;
+    }
+    .rotate-btn {
+      display:flex; align-items:center; gap:8px; padding:10px 18px; border:1.5px solid var(--border);
+      border-radius:50px; background:var(--card); cursor:pointer; font-weight:600; font-size:.9rem;
+      transition:all .2s; font-family:var(--font);
+    }
+    .rotate-btn:hover { border-color:var(--red); color:var(--red); }
+    .rotate-btn.active { background:var(--red); color:#fff; border-color:var(--red); }
+    .all-pages-ctrl { display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:12px; }
+    .rotation-indicator { font-size:.65rem; background:var(--blue); color:#fff; padding:2px 5px; border-radius:4px; position:absolute; bottom:4px; right:4px; font-weight:700; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+
+<section class="tool-page">
+  <div class="container" style="max-width:820px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(14,165,233,.12);color:var(--teal)">
+        <i class="fa-solid fa-rotate"></i>
+      </div>
+      <h1>Rotate PDF</h1>
+      <p>Rotate individual pages or all pages at once. Click pages to select, then choose rotation direction.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="rotateUI" style="display:none">
+      <div class="tool-options" style="margin-bottom:16px">
+        <h3>Rotation Controls</h3>
+        <div class="all-pages-ctrl">
+          <button class="rotate-btn" onclick="rotateAll(90)"><i class="fa fa-rotate-right"></i> All Pages +90°</button>
+          <button class="rotate-btn" onclick="rotateAll(-90)"><i class="fa fa-rotate-left"></i> All Pages −90°</button>
+          <button class="rotate-btn" onclick="rotateAll(180)"><i class="fa fa-rotate"></i> All Pages 180°</button>
+        </div>
+        <p style="text-align:center;font-size:.82rem;color:var(--muted)">Or click individual pages below, then use the buttons:</p>
+        <div class="rotate-controls">
+          <button class="rotate-btn" onclick="rotateSelected(90)"><i class="fa fa-rotate-right"></i> +90°</button>
+          <button class="rotate-btn" onclick="rotateSelected(-90)"><i class="fa fa-rotate-left"></i> −90°</button>
+          <button class="rotate-btn" onclick="rotateSelected(180)"><i class="fa fa-rotate"></i> 180°</button>
+        </div>
+      </div>
+
+      <div class="pages-grid" id="pagesGrid"></div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="rotateBtn">
+          <i class="fa-solid fa-rotate"></i> Apply Rotation & Download
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>Rotated Successfully!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download PDF</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Rotate Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const { PDFDocument, degrees } = PDFLib;
+
+let pdfFile = null, totalPages = 0, pageRotations = [], selectedPages = new Set();
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+async function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+  totalPages = pdf.numPages;
+  pageRotations = new Array(totalPages).fill(0);
+  selectedPages = new Set();
+  document.getElementById('rotateUI').style.display = 'block';
+  dropZone.style.display = 'none';
+  await renderThumbs(pdf);
+}
+
+async function renderThumbs(pdf) {
+  const grid = document.getElementById('pagesGrid');
+  grid.innerHTML = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: 0.28 });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    const thumb = document.createElement('div');
+    thumb.className = 'page-thumb';
+    thumb.id = `thumb-${i}`;
+    thumb.dataset.page = i;
+    const checkDiv = document.createElement('div');
+    checkDiv.className = 'page-check';
+    checkDiv.innerHTML = '<i class="fa fa-check"></i>';
+    const label = document.createElement('div');
+    label.className = 'page-thumb-label';
+    label.textContent = 'Page ' + i;
+    thumb.appendChild(checkDiv);
+    thumb.appendChild(canvas);
+    thumb.appendChild(label);
+    thumb.addEventListener('click', () => togglePage(i, thumb));
+    grid.appendChild(thumb);
+  }
+}
+
+function togglePage(n, el) {
+  if (selectedPages.has(n)) { selectedPages.delete(n); el.classList.remove('selected'); }
+  else { selectedPages.add(n); el.classList.add('selected'); }
+}
+
+function rotateAll(deg) {
+  for (let i = 0; i < totalPages; i++) pageRotations[i] = (pageRotations[i] + deg + 360) % 360;
+  updateThumbRotations();
+}
+
+function rotateSelected(deg) {
+  if (!selectedPages.size) { showToast('Click pages to select them first', 'error'); return; }
+  selectedPages.forEach(i => { pageRotations[i - 1] = (pageRotations[i - 1] + deg + 360) % 360; });
+  updateThumbRotations();
+}
+
+function updateThumbRotations() {
+  for (let i = 0; i < totalPages; i++) {
+    const thumb = document.getElementById(`thumb-${i + 1}`);
+    if (!thumb) continue;
+    const canvas = thumb.querySelector('canvas');
+    if (canvas) canvas.style.transform = `rotate(${pageRotations[i]}deg)`;
+    let badge = thumb.querySelector('.rotation-indicator');
+    if (pageRotations[i] !== 0) {
+      if (!badge) { badge = document.createElement('span'); badge.className = 'rotation-indicator'; thumb.appendChild(badge); }
+      badge.textContent = pageRotations[i] + '°';
+    } else if (badge) badge.remove();
+  }
+}
+
+document.getElementById('rotateBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('rotateBtn');
+  btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 40, 400);
+    const buf = await pdfFile.arrayBuffer();
+    const doc = await PDFDocument.load(buf);
+    const pages = doc.getPages();
+    pages.forEach((page, i) => {
+      if (pageRotations[i]) {
+        const cur = page.getRotation().angle;
+        page.setRotation(degrees((cur + pageRotations[i]) % 360));
+      }
+    });
+    await animateProgress(pb, pt, 40, 90, 400);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 90, 100, 200);
+
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = 'rotated.pdf';
+    document.getElementById('resultInfo').textContent = `${totalPages} page(s) processed → ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none';
+    btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null;
+  document.getElementById('rotateUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('rotateBtn').style.display = 'inline-flex';
+  document.getElementById('rotateBtn').disabled = false;
+  dropZone.style.display = 'block';
+  fileInput.value = '';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    #sigCanvas {
+      border:2px solid var(--border); border-radius:12px; cursor:crosshair;
+      background:#fff; touch-action:none; display:block; width:100%; max-width:500px; height:180px;
+    }
+    .sig-controls { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
+    .sig-controls button { padding:8px 16px; border:1.5px solid var(--border); border-radius:8px; background:var(--card); cursor:pointer; font-size:.85rem; font-family:var(--font); font-weight:600; transition:all .2s; }
+    .sig-controls button:hover { border-color:var(--red); color:var(--red); }
+    .sig-tabs { display:flex; gap:0; margin-bottom:16px; border:1.5px solid var(--border); border-radius:10px; overflow:hidden; }
+    .sig-tab { flex:1; padding:10px; text-align:center; cursor:pointer; font-size:.88rem; font-weight:600; background:var(--card); color:var(--muted); transition:all .2s; }
+    .sig-tab.active { background:var(--red); color:#fff; }
+    .sig-section { display:none; }
+    .sig-section.active { display:block; }
+    #typeCanvas { border:2px solid var(--border); border-radius:12px; background:#fff; display:block; width:100%; max-width:500px; height:100px; }
+    .sig-fonts { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+    .sig-font-btn { padding:6px 12px; border:1.5px solid var(--border); border-radius:8px; cursor:pointer; font-size:.85rem; transition:all .2s; background:var(--card); }
+    .sig-font-btn.active { border-color:var(--red); color:var(--red); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:720px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(30,41,59,.1);color:var(--dark)">
+        <i class="fa-solid fa-signature"></i>
+      </div>
+      <h1>Sign PDF</h1>
+      <p>Draw or type your signature and embed it onto your PDF document.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="toolUI" style="display:none">
+      <div class="file-list" id="fileList"></div>
+
+      <div class="tool-options">
+        <h3>Create Signature</h3>
+        <div class="sig-tabs">
+          <div class="sig-tab active" onclick="switchTab('draw')"><i class="fa fa-pen"></i> Draw</div>
+          <div class="sig-tab" onclick="switchTab('type')"><i class="fa fa-keyboard"></i> Type</div>
+        </div>
+
+        <!-- Draw tab -->
+        <div class="sig-section active" id="drawSection">
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:8px">Draw your signature below:</p>
+          <canvas id="sigCanvas" width="500" height="180"></canvas>
+          <div class="sig-controls">
+            <button onclick="clearSig()"><i class="fa fa-eraser"></i> Clear</button>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:.85rem;color:var(--muted)">Color:</label>
+              <input type="color" id="sigColor" value="#000000" style="width:36px;height:30px"/>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:.85rem;color:var(--muted)">Thickness:</label>
+              <input type="range" id="penSize" min="1" max="8" value="2" style="width:80px"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Type tab -->
+        <div class="sig-section" id="typeSection">
+          <input type="text" class="tool-input" id="typedSig" placeholder="Type your name" oninput="renderTyped()" style="margin-bottom:10px"/>
+          <div class="sig-fonts">
+            <button class="sig-font-btn active" onclick="setFont(this,'Dancing Script')" style="font-family:'Dancing Script',cursive">Elegant</button>
+            <button class="sig-font-btn" onclick="setFont(this,'Pacifico')" style="font-family:'Pacifico',cursive">Casual</button>
+            <button class="sig-font-btn" onclick="setFont(this,'serif')" style="font-family:serif">Classic</button>
+          </div>
+          <canvas id="typeCanvas" width="500" height="100"></canvas>
+        </div>
+      </div>
+
+      <div class="tool-options">
+        <h3>Placement</h3>
+        <div class="option-row">
+          <div><div class="option-label">Position on Page</div></div>
+          <select id="sigPos">
+            <option value="bottom-right" selected>Bottom Right</option>
+            <option value="bottom-left">Bottom Left</option>
+            <option value="bottom-center">Bottom Center</option>
+            <option value="top-right">Top Right</option>
+            <option value="top-left">Top Left</option>
+            <option value="center">Center</option>
+          </select>
+        </div>
+        <div class="option-row">
+          <div><div class="option-label">Apply to Pages</div></div>
+          <select id="sigPages">
+            <option value="last" selected>Last Page Only</option>
+            <option value="first">First Page Only</option>
+            <option value="all">All Pages</option>
+          </select>
+        </div>
+        <div class="option-row">
+          <div><div class="option-label">Signature Size</div></div>
+          <div class="slider-wrap">
+            <input type="range" id="sigSize" min="50" max="300" value="150" oninput="document.getElementById('sigSizeVal').textContent=this.value+'px'"/>
+            <span class="slider-val" id="sigSizeVal">150px</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="applyBtn">
+          <i class="fa-solid fa-signature"></i> Apply Signature
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>Signature Applied!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download Signed PDF</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Sign Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Pacifico&display=swap" rel="stylesheet"/>
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument, rgb } = PDFLib;
+let pdfFile = null, activeTab = 'draw', typedFont = 'Dancing Script';
+let isDrawing = false, lastX = 0, lastY = 0;
+const sigCanvas = document.getElementById('sigCanvas');
+const sigCtx = sigCanvas.getContext('2d');
+sigCtx.lineCap = 'round'; sigCtx.lineJoin = 'round';
+
+// Drawing events
+sigCanvas.addEventListener('mousedown', (e) => { isDrawing = true; [lastX, lastY] = getPos(e, sigCanvas); });
+sigCanvas.addEventListener('mousemove', (e) => {
+  if (!isDrawing) return;
+  const [x, y] = getPos(e, sigCanvas);
+  sigCtx.beginPath();
+  sigCtx.moveTo(lastX, lastY);
+  sigCtx.lineTo(x, y);
+  sigCtx.strokeStyle = document.getElementById('sigColor').value;
+  sigCtx.lineWidth = parseInt(document.getElementById('penSize').value);
+  sigCtx.stroke();
+  [lastX, lastY] = [x, y];
+});
+sigCanvas.addEventListener('mouseup', () => isDrawing = false);
+sigCanvas.addEventListener('mouseleave', () => isDrawing = false);
+sigCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; [lastX, lastY] = getPos(e.touches[0], sigCanvas); }, { passive: false });
+sigCanvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (!isDrawing) return;
+  const [x, y] = getPos(e.touches[0], sigCanvas);
+  sigCtx.beginPath(); sigCtx.moveTo(lastX, lastY); sigCtx.lineTo(x, y);
+  sigCtx.strokeStyle = document.getElementById('sigColor').value;
+  sigCtx.lineWidth = parseInt(document.getElementById('penSize').value);
+  sigCtx.stroke(); [lastX, lastY] = [x, y];
+}, { passive: false });
+sigCanvas.addEventListener('touchend', () => isDrawing = false);
+
+function getPos(e, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return [(e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY];
+}
+
+function clearSig() { sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); }
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.sig-tab').forEach((t, i) => t.classList.toggle('active', (i === 0 && tab === 'draw') || (i === 1 && tab === 'type')));
+  document.getElementById('drawSection').classList.toggle('active', tab === 'draw');
+  document.getElementById('typeSection').classList.toggle('active', tab === 'type');
+}
+
+function setFont(btn, font) {
+  document.querySelectorAll('.sig-font-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); typedFont = font; renderTyped();
+}
+
+function renderTyped() {
+  const c = document.getElementById('typeCanvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  const text = document.getElementById('typedSig').value;
+  if (!text) return;
+  ctx.font = `48px '${typedFont}', cursive`;
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, c.width / 2, c.height / 2);
+}
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  document.getElementById('fileList').innerHTML = `<div class="file-item"><i class="fa-solid fa-file-pdf file-item-icon"></i><div class="file-item-info"><div class="file-item-name">${file.name}</div><div class="file-item-size">${formatSize(file.size)}</div></div></div>`;
+  document.getElementById('toolUI').style.display = 'block';
+  dropZone.style.display = 'none';
+}
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  // Get signature image
+  let sigDataURL;
+  if (activeTab === 'draw') {
+    sigDataURL = sigCanvas.toDataURL('image/png');
+    // Check if blank
+    const blank = document.createElement('canvas');
+    blank.width = sigCanvas.width; blank.height = sigCanvas.height;
+    if (sigDataURL === blank.toDataURL()) { showToast('Please draw your signature first', 'error'); return; }
+  } else {
+    const t = document.getElementById('typedSig').value.trim();
+    if (!t) { showToast('Please type your signature', 'error'); return; }
+    renderTyped();
+    sigDataURL = document.getElementById('typeCanvas').toDataURL('image/png');
+  }
+
+  const btn = document.getElementById('applyBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 30, 300);
+    const buf = await pdfFile.arrayBuffer();
+    const doc = await PDFDocument.load(buf);
+    const pages = doc.getPages();
+    const total = pages.length;
+
+    // Load sig image
+    const res = await fetch(sigDataURL);
+    const imgBuf = await res.arrayBuffer();
+    const pngImg = await doc.embedPng(imgBuf);
+
+    const applyTo = document.getElementById('sigPages').value;
+    const sigW = parseInt(document.getElementById('sigSize').value);
+    const sigH = sigW * (pngImg.height / pngImg.width);
+    const pos = document.getElementById('sigPos').value;
+    const margin = 30;
+
+    const targetPages = applyTo === 'all' ? pages : applyTo === 'last' ? [pages[total - 1]] : [pages[0]];
+
+    targetPages.forEach(page => {
+      const { width, height } = page.getSize();
+      let x, y;
+      if (pos === 'bottom-right') { x = width - sigW - margin; y = margin; }
+      else if (pos === 'bottom-left') { x = margin; y = margin; }
+      else if (pos === 'bottom-center') { x = (width - sigW) / 2; y = margin; }
+      else if (pos === 'top-right') { x = width - sigW - margin; y = height - sigH - margin; }
+      else if (pos === 'top-left') { x = margin; y = height - sigH - margin; }
+      else { x = (width - sigW) / 2; y = (height - sigH) / 2; }
+      page.drawImage(pngImg, { x, y, width: sigW, height: sigH });
+    });
+
+    await animateProgress(pb, pt, 30, 95, 500);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 95, 100, 200);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = 'signed.pdf';
+    document.getElementById('resultInfo').textContent = `Signature applied to ${targetPages.length} page(s) → ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null;
+  clearSig();
+  document.getElementById('typedSig').value = '';
+  document.getElementById('toolUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+  dropZone.style.display = 'block'; fileInput.value = '';
+}
+</script>
+</body>
+</html>

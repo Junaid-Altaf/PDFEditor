@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Blank Pages — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:680px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(42,157,143,.12);color:var(--green)">
+        <i class="fa-solid fa-file-circle-plus"></i>
+      </div>
+      <h1>Add Blank Pages</h1>
+      <p>Insert blank pages at specified positions in your PDF document.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="toolUI" style="display:none">
+      <div class="file-list" id="fileList"></div>
+
+      <div class="tool-options">
+        <div class="option-row">
+          <div><div class="option-label">Number of Blank Pages</div></div>
+          <input type="number" class="tool-input" id="blankCount" value="1" min="1" max="50" style="width:80px"/>
+        </div>
+        <div class="option-row">
+          <div><div class="option-label">Insert Position</div></div>
+          <select id="insertPos">
+            <option value="end" selected>At the End</option>
+            <option value="start">At the Beginning</option>
+            <option value="after">After Specific Page</option>
+          </select>
+        </div>
+        <div class="option-row" id="afterPageRow" style="display:none">
+          <div><div class="option-label">After Page Number</div></div>
+          <input type="number" class="tool-input" id="afterPage" value="1" min="1" style="width:80px"/>
+        </div>
+        <div class="option-row">
+          <div><div class="option-label">Blank Page Size</div></div>
+          <select id="blankSize">
+            <option value="A4" selected>A4 (595 × 842 pt)</option>
+            <option value="Letter">Letter (612 × 792 pt)</option>
+            <option value="match">Match existing pages</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="applyBtn">
+          <i class="fa-solid fa-file-circle-plus"></i> Add Blank Pages
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>Pages Added!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download PDF</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Edit Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument, PageSizes } = PDFLib;
+let pdfFile = null;
+
+document.getElementById('insertPos').addEventListener('change', function() {
+  document.getElementById('afterPageRow').style.display = this.value === 'after' ? 'flex' : 'none';
+});
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  document.getElementById('fileList').innerHTML = `<div class="file-item"><i class="fa-solid fa-file-pdf file-item-icon"></i><div class="file-item-info"><div class="file-item-name">${file.name}</div><div class="file-item-size">${formatSize(file.size)}</div></div></div>`;
+  document.getElementById('toolUI').style.display = 'block';
+  dropZone.style.display = 'none';
+}
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  const count = Math.min(50, Math.max(1, parseInt(document.getElementById('blankCount').value) || 1));
+  const pos = document.getElementById('insertPos').value;
+  const btn = document.getElementById('applyBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 40, 400);
+    const buf = await pdfFile.arrayBuffer();
+    const doc = await PDFDocument.load(buf);
+    const origCount = doc.getPageCount();
+    const sizeId = document.getElementById('blankSize').value;
+    
+    let blankW = 595, blankH = 842;
+    if (sizeId === 'Letter') { blankW = 612; blankH = 792; }
+    else if (sizeId === 'match' && origCount > 0) {
+      const firstPage = doc.getPage(0);
+      const { width, height } = firstPage.getSize();
+      blankW = width; blankH = height;
+    }
+
+    if (pos === 'end') {
+      for (let i = 0; i < count; i++) doc.addPage([blankW, blankH]);
+    } else if (pos === 'start') {
+      // Insert at start by creating new doc with blank pages first then existing pages
+      const newDoc = await PDFDocument.create();
+      for (let i = 0; i < count; i++) newDoc.addPage([blankW, blankH]);
+      const copied = await newDoc.copyPages(doc, doc.getPageIndices());
+      copied.forEach(p => newDoc.addPage(p));
+      const bytes2 = await newDoc.save();
+      await animateProgress(pb, pt, 95, 100, 200);
+      const blob2 = new Blob([bytes2], { type: 'application/pdf' });
+      const baseName2 = pdfFile.name.replace(/\.pdf$/i, '');
+      document.getElementById('downloadLink').href = URL.createObjectURL(blob2);
+      document.getElementById('downloadLink').download = baseName2 + '-with-blanks.pdf';
+      document.getElementById('resultInfo').textContent = `${count} blank page(s) added → total ${origCount + count} pages`;
+      pw.style.display = 'none';
+      document.getElementById('resultBox').style.display = 'block';
+      btn.style.display = 'none';
+      return;
+    } else {
+      const afterPg = Math.min(origCount, Math.max(1, parseInt(document.getElementById('afterPage').value) || 1));
+      // Insert after afterPg: reconstruct page order
+      const newDoc = await PDFDocument.create();
+      const indices = doc.getPageIndices();
+      for (let i = 0; i < afterPg; i++) {
+        const [copied] = await newDoc.copyPages(doc, [indices[i]]);
+        newDoc.addPage(copied);
+      }
+      for (let i = 0; i < count; i++) newDoc.addPage([blankW, blankH]);
+      for (let i = afterPg; i < origCount; i++) {
+        const [copied] = await newDoc.copyPages(doc, [indices[i]]);
+        newDoc.addPage(copied);
+      }
+      await animateProgress(pb, pt, 80, 95, 300);
+      const bytes3 = await newDoc.save();
+      await animateProgress(pb, pt, 95, 100, 200);
+      const blob3 = new Blob([bytes3], { type: 'application/pdf' });
+      const baseName3 = pdfFile.name.replace(/\.pdf$/i, '');
+      document.getElementById('downloadLink').href = URL.createObjectURL(blob3);
+      document.getElementById('downloadLink').download = baseName3 + '-with-blanks.pdf';
+      document.getElementById('resultInfo').textContent = `${count} blank page(s) inserted after page ${afterPg} → total ${origCount + count} pages`;
+      pw.style.display = 'none';
+      document.getElementById('resultBox').style.display = 'block';
+      btn.style.display = 'none';
+      return;
+    }
+
+    await animateProgress(pb, pt, 40, 95, 500);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 95, 100, 200);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const baseName = pdfFile.name.replace(/\.pdf$/i, '');
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = baseName + '-with-blanks.pdf';
+    document.getElementById('resultInfo').textContent = `${count} blank page(s) added → total ${doc.getPageCount()} pages`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  pdfFile = null;
+  document.getElementById('toolUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+  dropZone.style.display = 'block'; fileInput.value = '';
+}
+</script>
+</body>
+</html>

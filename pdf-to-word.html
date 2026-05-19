@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDF to Word — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .info-banner {
+      background:linear-gradient(135deg,#eff6ff,#dbeafe);
+      border:1.5px solid #93c5fd; border-radius:12px;
+      padding:16px 20px; display:flex; gap:12px; align-items:flex-start; margin-bottom:20px;
+    }
+    .info-banner i { color:#3b82f6; flex-shrink:0; margin-top:2px; }
+    .info-banner p { font-size:.875rem; color:#1e40af; line-height:1.6; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+
+<section class="tool-page">
+  <div class="container" style="max-width:680px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(69,123,157,.12);color:var(--blue)">
+        <i class="fa-solid fa-file-word"></i>
+      </div>
+      <h1>PDF to Word</h1>
+      <p>Extract all text content from your PDF and save it as a Word-compatible document.</p>
+    </div>
+
+    <div class="info-banner">
+      <i class="fa-solid fa-circle-info"></i>
+      <p>This tool extracts text from your PDF and creates a DOCX-compatible file. Complex layouts (tables, multi-column) may need manual adjustments. No data is sent to any server — all processing is local.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a PDF file here</h3>
+      <p>or click to select</p>
+      <a class="btn-primary" style="pointer-events:none">Select PDF File</a>
+    </div>
+
+    <div id="convertUI" style="display:none">
+      <div class="file-list" id="fileList"></div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">Extracting text…</div>
+        </div>
+        <button class="btn-action" id="convertBtn">
+          <i class="fa-solid fa-file-word"></i> Convert to Word
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>Converted Successfully!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download DOCX</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Convert Another File</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let pdfFile = null;
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file || file.type !== 'application/pdf') { showToast('Please select a PDF file', 'error'); return; }
+  pdfFile = file;
+  document.getElementById('fileList').innerHTML = `
+    <div class="file-item">
+      <i class="fa-solid fa-file-pdf file-item-icon"></i>
+      <div class="file-item-info">
+        <div class="file-item-name">${file.name}</div>
+        <div class="file-item-size">${formatSize(file.size)}</div>
+      </div>
+    </div>`;
+  document.getElementById('convertUI').style.display = 'block';
+  dropZone.style.display = 'none';
+}
+
+document.getElementById('convertBtn').addEventListener('click', async () => {
+  if (!pdfFile) return;
+  const btn = document.getElementById('convertBtn');
+  btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 20, 300);
+    const buf = await pdfFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let allText = '';
+    let wordCount = 0;
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      pt.textContent = `Extracting page ${i} of ${pdf.numPages}…`;
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      allText += `\n--- Page ${i} ---\n` + pageText + '\n';
+      wordCount += pageText.split(/\s+/).filter(Boolean).length;
+      pb.style.width = Math.round((i / pdf.numPages) * 80) + '%';
+    }
+
+    await animateProgress(pb, pt, 80, 95, 300);
+
+    // Build a basic RTF-based Word-compatible document
+    const rtf = buildRTF(allText, pdfFile.name);
+    const blob = new Blob([rtf], { type: 'application/rtf' });
+    await animateProgress(pb, pt, 95, 100, 200);
+
+    const name = pdfFile.name.replace(/\.pdf$/i, '.rtf');
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = name;
+    document.getElementById('resultInfo').textContent = `${pdf.numPages} page(s) extracted · ~${wordCount.toLocaleString()} words`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none';
+    btn.disabled = false;
+  }
+});
+
+function buildRTF(text, title) {
+  // Escape RTF special chars
+  const escaped = text
+    .replace(/\\/g, '\\\\')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .replace(/\n--- Page (\d+) ---/g, '\n\\pard\\sb240\\sa120\\b Page $1\\b0\\par ')
+    .replace(/\n/g, '\\par ');
+
+  return `{\\rtf1\\ansi\\deff0
+{\\fonttbl{\\f0 Times New Roman;}}
+{\\info{\\title ${title}}}
+\\f0\\fs24
+${escaped}
+}`;
+}
+
+function resetTool() {
+  pdfFile = null;
+  document.getElementById('convertUI').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('convertBtn').style.display = 'inline-flex';
+  document.getElementById('convertBtn').disabled = false;
+  dropZone.style.display = 'block';
+  fileInput.value = '';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JPG to PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .img-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:12px; margin:16px 0; }
+    .img-thumb {
+      border:2px solid var(--border); border-radius:10px; overflow:hidden; position:relative;
+      background:var(--card); cursor:grab;
+    }
+    .img-thumb img { width:100%; height:100px; object-fit:cover; display:block; }
+    .img-thumb-label { font-size:.72rem; color:var(--muted); text-align:center; padding:4px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .img-thumb-remove {
+      position:absolute; top:4px; right:4px; background:rgba(0,0,0,.6); color:#fff;
+      border:none; border-radius:50%; width:22px; height:22px; font-size:.7rem;
+      display:flex; align-items:center; justify-content:center; cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+
+<section class="tool-page">
+  <div class="container" style="max-width:760px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(124,58,237,.12);color:var(--purple)">
+        <i class="fa-solid fa-file-image"></i>
+      </div>
+      <h1>JPG to PDF</h1>
+      <p>Convert one or multiple images to a single PDF. Supports JPG, PNG, GIF, BMP, WebP.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="image/*" multiple/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-images"></i></div>
+      <h3>Drop images here</h3>
+      <p>Supports JPG, PNG, WebP, GIF, BMP</p>
+      <a class="btn-primary" style="pointer-events:none">Select Images</a>
+    </div>
+
+    <div id="convertUI" style="display:none">
+      <div class="img-grid" id="imgGrid"></div>
+
+      <div class="tool-options">
+        <h3>Page Settings</h3>
+        <div class="option-row">
+          <div><div class="option-label">Page Size</div></div>
+          <select id="pageSize">
+            <option value="a4" selected>A4</option>
+            <option value="letter">Letter</option>
+            <option value="fit">Fit to Image</option>
+          </select>
+        </div>
+        <div class="option-row">
+          <div><div class="option-label">Orientation</div></div>
+          <select id="orientation">
+            <option value="portrait" selected>Portrait</option>
+            <option value="landscape">Landscape</option>
+          </select>
+        </div>
+        <div class="option-row">
+          <div><div class="option-label">Margin</div></div>
+          <select id="margin">
+            <option value="0">No Margin</option>
+            <option value="20" selected>Small (20px)</option>
+            <option value="40">Medium (40px)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="action-area">
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+        <button class="btn-action" id="convertBtn">
+          <i class="fa-solid fa-file-pdf"></i> Convert to PDF
+        </button>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>Converted Successfully!</h3>
+        <p id="resultInfo"></p>
+        <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download PDF</a>
+        <br/><br/>
+        <button onclick="resetTool()" class="btn-outline">Convert More Images</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument, PageSizes, degrees } = PDFLib;
+let images = [];
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); addImages([...e.dataTransfer.files]); });
+fileInput.addEventListener('change', () => addImages([...fileInput.files]));
+
+function addImages(files) {
+  files.filter(f => f.type.startsWith('image/')).forEach(f => images.push(f));
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('imgGrid');
+  grid.innerHTML = '';
+  if (!images.length) { document.getElementById('convertUI').style.display = 'none'; dropZone.style.display = 'block'; return; }
+  document.getElementById('convertUI').style.display = 'block';
+  dropZone.style.display = 'none';
+  images.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'img-thumb';
+    const url = URL.createObjectURL(f);
+    div.innerHTML = `
+      <img src="${url}" alt="${f.name}"/>
+      <div class="img-thumb-label">${f.name}</div>
+      <button class="img-thumb-remove" onclick="removeImg(${i})"><i class="fa fa-times"></i></button>
+    `;
+    grid.appendChild(div);
+  });
+}
+
+function removeImg(i) { images.splice(i, 1); renderGrid(); }
+
+document.getElementById('convertBtn').addEventListener('click', async () => {
+  if (!images.length) return;
+  const btn = document.getElementById('convertBtn');
+  btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    const pageSizeKey = document.getElementById('pageSize').value;
+    const isLandscape = document.getElementById('orientation').value === 'landscape';
+    const margin = parseInt(document.getElementById('margin').value);
+    const doc = await PDFDocument.create();
+
+    for (let i = 0; i < images.length; i++) {
+      pt.textContent = `Processing image ${i + 1} of ${images.length}…`;
+      pb.style.width = Math.round((i / images.length) * 90) + '%';
+
+      const buf = await images[i].arrayBuffer();
+      let pdfImg;
+      const mime = images[i].type;
+      if (mime === 'image/png') pdfImg = await doc.embedPng(buf);
+      else pdfImg = await doc.embedJpg(buf);
+
+      let pageW, pageH;
+      if (pageSizeKey === 'fit') {
+        pageW = pdfImg.width; pageH = pdfImg.height;
+      } else {
+        const size = pageSizeKey === 'a4' ? PageSizes.A4 : PageSizes.Letter;
+        [pageW, pageH] = isLandscape ? [size[1], size[0]] : size;
+      }
+
+      const page = doc.addPage([pageW, pageH]);
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2;
+      const scale = Math.min(availW / pdfImg.width, availH / pdfImg.height);
+      const w = pdfImg.width * scale, h = pdfImg.height * scale;
+      const x = (pageW - w) / 2, y = (pageH - h) / 2;
+      page.drawImage(pdfImg, { x, y, width: w, height: h });
+    }
+
+    pb.style.width = '95%';
+    const bytes = await doc.save();
+    pb.style.width = '100%';
+
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = 'images.pdf';
+    document.getElementById('resultInfo').textContent = `${images.length} image(s) → ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none';
+    btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  images = [];
+  document.getElementById('imgGrid').innerHTML = '';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('convertBtn').style.display = 'inline-flex';
+  document.getElementById('convertBtn').disabled = false;
+  dropZone.style.display = 'block';
+  document.getElementById('convertUI').style.display = 'none';
+  fileInput.value = '';
+}
+</script>
+</body>
+</html>

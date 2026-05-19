@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Word to PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .info-banner {
+      background:linear-gradient(135deg,#eff6ff,#dbeafe);
+      border:1.5px solid #93c5fd; border-radius:12px;
+      padding:16px 20px; display:flex; gap:12px; align-items:flex-start; margin-bottom:20px;
+    }
+    .info-banner i { color:#3b82f6; flex-shrink:0; margin-top:2px; }
+    .info-banner p { font-size:.875rem; color:#1e40af; line-height:1.6; }
+    #previewArea {
+      border:1px solid var(--border); border-radius:12px; min-height:200px;
+      padding:32px; background:#fff; font-size:.95rem; line-height:1.8;
+      max-height:400px; overflow-y:auto; margin:12px 0; white-space:pre-wrap; word-break:break-word;
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+
+<section class="tool-page">
+  <div class="container" style="max-width:720px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(69,123,157,.12);color:var(--blue)">
+        <i class="fa-solid fa-file-pdf"></i>
+      </div>
+      <h1>Word to PDF</h1>
+      <p>Convert plain text or paste your document content and export it as a styled PDF.</p>
+    </div>
+
+    <div class="info-banner">
+      <i class="fa-solid fa-circle-info"></i>
+      <p>Paste your text content below or upload a plain text (.txt) file. Your content will be formatted and exported as a ready-to-share PDF document.</p>
+    </div>
+
+    <div class="tool-options">
+      <h3>Document Settings</h3>
+      <div class="option-row">
+        <div><div class="option-label">Document Title</div></div>
+        <input type="text" class="tool-input" id="docTitle" placeholder="Untitled Document" style="max-width:260px"/>
+      </div>
+      <div class="option-row">
+        <div><div class="option-label">Font Size</div></div>
+        <select id="fontSize">
+          <option value="10">10pt</option>
+          <option value="11">11pt</option>
+          <option value="12" selected>12pt</option>
+          <option value="14">14pt</option>
+        </select>
+      </div>
+      <div class="option-row">
+        <div><div class="option-label">Page Size</div></div>
+        <select id="pageSize">
+          <option value="a4" selected>A4</option>
+          <option value="letter">Letter</option>
+        </select>
+      </div>
+      <div style="margin-top:12px">
+        <div class="option-label" style="margin-bottom:8px">Or upload a .txt file:</div>
+        <input type="file" id="txtInput" accept=".txt,.rtf" style="font-size:.9rem"/>
+      </div>
+    </div>
+
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label style="font-weight:700;font-size:.9rem">Document Content</label>
+        <span style="font-size:.78rem;color:var(--muted)" id="charCount">0 characters</span>
+      </div>
+      <textarea id="previewArea" placeholder="Paste or type your document content here…" oninput="updateCount()"></textarea>
+    </div>
+
+    <div class="action-area">
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+      <button class="btn-action" id="convertBtn">
+        <i class="fa-solid fa-file-pdf"></i> Convert to PDF
+      </button>
+    </div>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+      <h3>PDF Created!</h3>
+      <p id="resultInfo"></p>
+      <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download PDF</a>
+      <br/><br/>
+      <button onclick="resetTool()" class="btn-outline">Convert Another Document</button>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument, PageSizes, rgb, StandardFonts } = PDFLib;
+
+document.getElementById('txtInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  document.getElementById('previewArea').value = text;
+  updateCount();
+  if (!document.getElementById('docTitle').value) {
+    document.getElementById('docTitle').value = file.name.replace(/\.[^.]+$/, '');
+  }
+});
+
+function updateCount() {
+  const n = document.getElementById('previewArea').value.length;
+  document.getElementById('charCount').textContent = n.toLocaleString() + ' characters';
+}
+
+document.getElementById('convertBtn').addEventListener('click', async () => {
+  const content = document.getElementById('previewArea').value.trim();
+  if (!content) { showToast('Please enter some text content', 'error'); return; }
+
+  const btn = document.getElementById('convertBtn');
+  btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 20, 300);
+    const title = document.getElementById('docTitle').value || 'Document';
+    const fontSize = parseInt(document.getElementById('fontSize').value);
+    const pageSizeKey = document.getElementById('pageSize').value;
+    const pageSize = pageSizeKey === 'a4' ? PageSizes.A4 : PageSizes.Letter;
+
+    const doc = await PDFDocument.create();
+    doc.setTitle(title);
+    doc.setCreator('PDFPro');
+    const font = await doc.embedFont(StandardFonts.TimesRoman);
+    const boldFont = await doc.embedFont(StandardFonts.TimesRomanBold);
+
+    const [pageW, pageH] = pageSize;
+    const margin = 60;
+    const lineHeight = fontSize * 1.5;
+    const maxWidth = pageW - margin * 2;
+    const maxY = pageH - margin;
+
+    // Split content into lines
+    const paragraphs = content.split('\n');
+    let curY = pageH - margin - fontSize;
+    let page = doc.addPage(pageSize);
+
+    // Title
+    page.drawText(title, {
+      x: margin, y: curY,
+      size: fontSize + 4,
+      font: boldFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+    curY -= lineHeight * 2;
+
+    await animateProgress(pb, pt, 20, 60, 500);
+
+    for (const para of paragraphs) {
+      if (!para.trim()) { curY -= lineHeight * 0.5; continue; }
+      // Word wrap
+      const words = para.split(' ');
+      let line = '';
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        const testWidth = font.widthOfTextAtSize(test, fontSize);
+        if (testWidth > maxWidth && line) {
+          if (curY < margin + lineHeight) { page = doc.addPage(pageSize); curY = pageH - margin - fontSize; }
+          page.drawText(line, { x: margin, y: curY, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) });
+          curY -= lineHeight;
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) {
+        if (curY < margin + lineHeight) { page = doc.addPage(pageSize); curY = pageH - margin - fontSize; }
+        page.drawText(line, { x: margin, y: curY, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) });
+        curY -= lineHeight;
+      }
+      curY -= lineHeight * 0.3;
+    }
+
+    await animateProgress(pb, pt, 60, 95, 400);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 95, 100, 200);
+
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const name = (title || 'document').replace(/[^a-z0-9_-]/gi, '_') + '.pdf';
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = name;
+    document.getElementById('resultInfo').textContent = `${doc.getPageCount()} page(s) · ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none';
+    btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('convertBtn').style.display = 'inline-flex';
+  document.getElementById('convertBtn').disabled = false;
+  document.getElementById('previewArea').value = '';
+  document.getElementById('docTitle').value = '';
+  updateCount();
+}
+</script>
+</body>
+</html>

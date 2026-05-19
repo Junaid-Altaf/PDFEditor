@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Excel / CSV to PDF — PDFPro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    #csvInput { width:100%; min-height:160px; padding:12px; border:1.5px solid var(--border); border-radius:10px; font-family:monospace; font-size:.82rem; resize:vertical; }
+    .csv-preview-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    .csv-preview-table th { background:var(--dark); color:#fff; padding:8px 10px; text-align:left; }
+    .csv-preview-table td { padding:6px 10px; border-bottom:1px solid var(--border); }
+    .csv-preview-table tr:nth-child(even) td { background:#f8fafc; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><i class="fa-solid fa-file-pdf"></i><span>PDF<strong>Pro</strong></span></a>
+    <ul class="nav-links"><li><a href="index.html#tools">All Tools</a></li></ul>
+    <div class="nav-cta"><a href="index.html" class="btn-outline">← Back to Home</a></div>
+    <button class="hamburger" id="hamburger"><i class="fa fa-bars"></i></button>
+  </div>
+</nav>
+<section class="tool-page">
+  <div class="container" style="max-width:800px">
+    <div class="tool-page-header">
+      <div class="tool-page-icon" style="background:rgba(42,157,143,.12);color:var(--green)">
+        <i class="fa-solid fa-table"></i>
+      </div>
+      <h1>Excel / CSV to PDF</h1>
+      <p>Upload a CSV file or paste your data to convert it into a formatted PDF table.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone" style="margin-bottom:16px">
+      <input type="file" id="fileInput" accept=".csv,.txt"/>
+      <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h3>Drop a CSV file here</h3>
+      <p>or click to select — or paste data below</p>
+      <a class="btn-primary" style="pointer-events:none">Select CSV File</a>
+    </div>
+
+    <div class="tool-options">
+      <h3>CSV Data</h3>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:8px">Paste CSV here or upload a file above:</p>
+      <textarea id="csvInput" placeholder="Name,Age,City&#10;Alice,30,New York&#10;Bob,25,London&#10;Carol,35,Tokyo"></textarea>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="parseCsvPreview()" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;font-family:var(--font);font-size:.85rem;font-weight:600">
+          <i class="fa fa-table"></i> Preview Table
+        </button>
+        <button onclick="document.getElementById('csvInput').value='';document.getElementById('previewArea').innerHTML=''" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;font-family:var(--font);font-size:.85rem">Clear</button>
+      </div>
+    </div>
+
+    <div id="previewArea" style="margin:16px 0;overflow-x:auto"></div>
+
+    <div class="tool-options">
+      <div class="option-row">
+        <div><div class="option-label">Page Size</div></div>
+        <select id="pageSize">
+          <option value="A4">A4</option>
+          <option value="Letter" selected>Letter</option>
+          <option value="A3">A3 (Landscape)</option>
+        </select>
+      </div>
+      <div class="option-row">
+        <div><div class="option-label">First Row is Header</div></div>
+        <label class="toggle"><input type="checkbox" id="hasHeader" checked/><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+
+    <div class="action-area">
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+      <button class="btn-action" id="applyBtn">
+        <i class="fa-solid fa-table"></i> Convert to PDF
+      </button>
+    </div>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-icon"><i class="fa-solid fa-circle-check"></i></div>
+      <h3>PDF Created!</h3>
+      <p id="resultInfo"></p>
+      <a id="downloadLink" class="btn-download"><i class="fa-solid fa-download"></i> Download PDF</a>
+      <br/><br/>
+      <button onclick="resetTool()" class="btn-outline">Convert Another</button>
+    </div>
+  </div>
+</section>
+
+<script src="main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { document.getElementById('csvInput').value = reader.result; parseCsvPreview(); };
+  reader.readAsText(file);
+}
+
+function parseCsv(text) {
+  return text.trim().split('\n').map(row => {
+    const cells = []; let cell = '', inQ = false;
+    for (let i = 0; i < row.length; i++) {
+      if (row[i] === '"') { inQ = !inQ; }
+      else if (row[i] === ',' && !inQ) { cells.push(cell.trim()); cell = ''; }
+      else { cell += row[i]; }
+    }
+    cells.push(cell.trim());
+    return cells;
+  });
+}
+
+function parseCsvPreview() {
+  const text = document.getElementById('csvInput').value.trim();
+  if (!text) return;
+  const rows = parseCsv(text);
+  const hasHeader = document.getElementById('hasHeader').checked;
+  let html = '<table class="csv-preview-table"><thead>';
+  if (hasHeader && rows.length > 0) {
+    html += '<tr>' + rows[0].map(c => `<th>${c}</th>`).join('') + '</tr>';
+    html += '</thead><tbody>';
+    for (let i = 1; i < Math.min(rows.length, 11); i++)
+      html += '<tr>' + rows[i].map(c => `<td>${c}</td>`).join('') + '</tr>';
+  } else {
+    html += '</thead><tbody>';
+    for (let i = 0; i < Math.min(rows.length, 11); i++)
+      html += '<tr>' + rows[i].map(c => `<td>${c}</td>`).join('') + '</tr>';
+  }
+  if (rows.length > 11) html += `<tr><td colspan="100" style="color:var(--muted);text-align:center">...and ${rows.length - 11} more rows</td></tr>`;
+  html += '</tbody></table>';
+  document.getElementById('previewArea').innerHTML = html;
+}
+
+document.getElementById('applyBtn').addEventListener('click', async () => {
+  const text = document.getElementById('csvInput').value.trim();
+  if (!text) { showToast('Please enter CSV data', 'error'); return; }
+  const rows = parseCsv(text);
+  if (!rows.length) { showToast('No data found', 'error'); return; }
+
+  const btn = document.getElementById('applyBtn'); btn.disabled = true;
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  const pt = document.getElementById('progressText');
+  pw.style.display = 'block';
+
+  try {
+    await animateProgress(pb, pt, 0, 30, 300);
+    const doc = await PDFDocument.create();
+    const fontNorm = await doc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const pageSzId = document.getElementById('pageSize').value;
+    let PW = 612, PH = 792;
+    if (pageSzId === 'A4') { PW = 595; PH = 842; }
+    else if (pageSzId === 'A3') { PW = 1190; PH = 842; }
+    const margin = 40, rowH = 20, fontSize = 9;
+    const hasHeader = document.getElementById('hasHeader').checked;
+    const allRows = rows;
+    const numCols = allRows[0]?.length || 1;
+    const colW = (PW - margin * 2) / numCols;
+    let page = doc.addPage([PW, PH]);
+    let y = PH - margin;
+
+    allRows.forEach((row, rIdx) => {
+      if (y < margin + rowH) { page = doc.addPage([PW, PH]); y = PH - margin; }
+      const isHeader = hasHeader && rIdx === 0;
+      if (isHeader) {
+        page.drawRectangle({ x: margin, y: y - rowH, width: PW - margin*2, height: rowH, color: rgb(0.12, 0.16, 0.24) });
+      } else if (rIdx % 2 === 0) {
+        page.drawRectangle({ x: margin, y: y - rowH, width: PW - margin*2, height: rowH, color: rgb(0.97, 0.98, 0.99) });
+      }
+      row.forEach((cell, cIdx) => {
+        const x = margin + cIdx * colW;
+        const font = isHeader ? fontBold : fontNorm;
+        const color = isHeader ? rgb(1,1,1) : rgb(0,0,0);
+        // Truncate cell text to fit
+        let text = String(cell || '');
+        while (text.length > 1 && font.widthOfTextAtSize(text, fontSize) > colW - 8) text = text.slice(0, -1);
+        page.drawText(text, { x: x + 4, y: y - rowH + 5, size: fontSize, font, color });
+      });
+      // Row border
+      page.drawLine({ start: { x: margin, y: y - rowH }, end: { x: PW - margin, y: y - rowH }, thickness: 0.5, color: rgb(0.85,0.85,0.85) });
+      y -= rowH;
+    });
+
+    await animateProgress(pb, pt, 70, 95, 400);
+    const bytes = await doc.save();
+    await animateProgress(pb, pt, 95, 100, 200);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+    document.getElementById('downloadLink').download = 'table.pdf';
+    document.getElementById('resultInfo').textContent = `${allRows.length} rows × ${numCols} columns → ${formatSize(bytes.byteLength)}`;
+    pw.style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    btn.style.display = 'none';
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+    pw.style.display = 'none'; btn.disabled = false;
+  }
+});
+
+function resetTool() {
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('applyBtn').style.display = 'inline-flex';
+  document.getElementById('applyBtn').disabled = false;
+}
+</script>
+</body>
+</html>
